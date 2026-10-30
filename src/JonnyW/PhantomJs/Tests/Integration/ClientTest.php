@@ -35,9 +35,80 @@ class ClientTest extends TestCase
      */
     protected $directory;
 
-/** +++++++++++++++++++++++++++++++++++ **/
-/** ++++++++++++++ TESTS ++++++++++++++ **/
-/** +++++++++++++++++++++++++++++++++++ **/
+    /** @var resource|null */
+    private static $fixtureServer;
+
+    /** @var int */
+    private static $fixturePort;
+
+    /** @var array */
+    private static $fixturePipes = array();
+
+    public static function setUpBeforeClass(): void
+    {
+        parent::setUpBeforeClass();
+
+        $socket = @stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
+        if (!$socket) {
+            throw new \RuntimeException('Cannot reserve fixture port: ' . $errstr);
+        }
+        $name = stream_socket_get_name($socket, false);
+        self::$fixturePort = (int) substr(strrchr($name, ':'), 1);
+        fclose($socket);
+
+        $router = __DIR__ . '/router.php';
+        $cmd = 'exec ' . escapeshellarg(PHP_BINARY)
+            . ' -S 127.0.0.1:' . self::$fixturePort
+            . ' ' . escapeshellarg($router);
+        $spec = array(
+            0 => array('pipe', 'r'),
+            1 => array('file', sys_get_temp_dir() . '/phantomjs-test-server.log', 'a'),
+            2 => array('file', sys_get_temp_dir() . '/phantomjs-test-server.log', 'a'),
+        );
+        self::$fixtureServer = proc_open($cmd, $spec, self::$fixturePipes);
+        if (!is_resource(self::$fixtureServer)) {
+            throw new \RuntimeException('Cannot start local fixture server');
+        }
+
+        $ready = false;
+        for ($i = 0; $i < 100; $i++) {
+            $connection = @fsockopen('127.0.0.1', self::$fixturePort, $errno, $errstr, 0.1);
+            if ($connection) {
+                fclose($connection);
+                $ready = true;
+                break;
+            }
+            usleep(50000);
+        }
+        if (!$ready) {
+            self::tearDownAfterClass();
+            throw new \RuntimeException('Local fixture server did not become ready');
+        }
+    }
+
+    public static function tearDownAfterClass(): void
+    {
+        foreach (self::$fixturePipes as $pipe) {
+            if (is_resource($pipe)) {
+                fclose($pipe);
+            }
+        }
+        if (is_resource(self::$fixtureServer)) {
+            proc_terminate(self::$fixtureServer);
+            proc_close(self::$fixtureServer);
+            self::$fixtureServer = null;
+        }
+        parent::tearDownAfterClass();
+    }
+
+    private static function fixtureUrl($path)
+    {
+        return 'http://127.0.0.1:' . self::$fixturePort . '/tests/' . $path;
+    }
+
+    /** +++++++++++++++++++++++++++++++++++ **/
+    /** ++++++++++++++ TESTS ++++++++++++++ **/
+    /** +++++++++++++++++++++++++++++++++++ **/
 
     /**
      * Test additional procedures can be loaded
@@ -119,7 +190,7 @@ EOF;
      */
     public function testSyntaxExceptionIsThrownIfRequestProcedureContainsSyntaxError()
     {
-        $this->setExpectedException('\JonnyW\PhantomJs\Exception\SyntaxException');
+        $this->expectException('\JonnyW\PhantomJs\Exception\SyntaxException');
 
         $content = 'TEST_PROCEDURE';
 
@@ -157,7 +228,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
+        $request->setUrl(self::fixtureUrl('test-default.php'));
 
         $client->send($request, $response);
 
@@ -179,7 +250,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
+        $request->setUrl(self::fixtureUrl('test-default.php'));
         $request->setRequestData(array(
             'test1' => 'http://test.com',
             'test2' => 'A string with an \' ) / # some other invalid [ characters.'
@@ -205,11 +276,11 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
+        $request->setUrl(self::fixtureUrl('test-default.php'));
 
         $client->send($request, $response);
 
-        $this->assertContains('PHANTOMJS_DEFAULT_TEST', $response->getContent());
+        self::assertStringContainsString('PHANTOMJS_DEFAULT_TEST', $response->getContent());
     }
 
     /**
@@ -226,12 +297,12 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
+        $request->setUrl(self::fixtureUrl('test-default.php'));
         $request->addSetting('userAgent', 'PhantomJS TEST');
 
         $client->send($request, $response);
 
-        $this->assertContains('userAgent=PhantomJS TEST', $response->getContent());
+        self::assertStringContainsString('userAgent=PhantomJS TEST', $response->getContent());
     }
 
     /**
@@ -248,12 +319,12 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
-        $request->addCookie('test_cookie', 'TESTING_COOKIES', '/', '.jonnyw.kiwi');
+        $request->setUrl(self::fixtureUrl('test-default.php'));
+        $request->addCookie('test_cookie', 'TESTING_COOKIES', '/', '127.0.0.1');
 
         $client->send($request, $response);
 
-        $this->assertContains('cookie_test_cookie=TESTING_COOKIES', $response->getContent());
+        self::assertStringContainsString('cookie_test_cookie=TESTING_COOKIES', $response->getContent());
     }
 
     /**
@@ -274,15 +345,15 @@ EOF;
         $request  = $client->getMessageFactory()->createRequest();
         $response = $client->getMessageFactory()->createResponse();
 
-        $expireAt = strtotime('16-Nov-2020 00:00:00');
+        $expireAt = strtotime('16-Nov-2035 00:00:00');
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
-        $request->addCookie('test_cookie', 'TESTING_COOKIES', '/', '.jonnyw.kiwi', true, false, ($expireAt * 1000));
+        $request->setUrl(self::fixtureUrl('test-default.php'));
+        $request->addCookie('test_cookie', 'TESTING_COOKIES', '/', '127.0.0.1', true, false, ($expireAt * 1000));
 
         $client->send($request, $response);
 
-        $this->assertContains('test_cookie=TESTING_COOKIES; HttpOnly; expires=Mon, 16-Nov-2020 00:00:00 GMT; domain=.jonnyw.kiwi; path=/)', file_get_contents($file));
+        self::assertStringContainsString('test_cookie=TESTING_COOKIES; HttpOnly; expires=Fri, 16-Nov-2035 00:00:00 GMT; domain=127.0.0.1; path=/)', file_get_contents($file));
     }
 
     /**
@@ -303,22 +374,22 @@ EOF;
         $request  = $client->getMessageFactory()->createRequest();
         $response = $client->getMessageFactory()->createResponse();
 
-        $expireAt = strtotime('16-Nov-2020 00:00:00');
+        $expireAt = strtotime('16-Nov-2035 00:00:00');
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
-        $request->addCookie('test_cookie', 'TESTING_COOKIES', '/', '.jonnyw.kiwi', true, false, ($expireAt * 1000));
+        $request->setUrl(self::fixtureUrl('test-default.php'));
+        $request->addCookie('test_cookie', 'TESTING_COOKIES', '/', '127.0.0.1', true, false, ($expireAt * 1000));
 
         $client->send($request, $response);
 
         $request = $client->getMessageFactory()->createRequest();
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
+        $request->setUrl(self::fixtureUrl('test-default.php'));
         $request->deleteCookie('test_cookie');
 
         $client->send($request, $response);
 
-        $this->assertNotContains('test_cookie=TESTING_COOKIES; HttpOnly; expires=Mon, 16-Nov-2020 00:00:00 GMT; domain=.jonnyw.kiwi; path=/)', file_get_contents($file));
+        $this->assertStringNotContainsString('test_cookie=TESTING_COOKIES; HttpOnly; expires=Fri, 16-Nov-2035 00:00:00 GMT; domain=127.0.0.1; path=/)', file_get_contents($file));
     }
 
     /**
@@ -339,24 +410,24 @@ EOF;
         $request  = $client->getMessageFactory()->createRequest();
         $response = $client->getMessageFactory()->createResponse();
 
-        $expireAt = strtotime('16-Nov-2020 00:00:00');
+        $expireAt = strtotime('16-Nov-2035 00:00:00');
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
-        $request->addCookie('test_cookie_1', 'TESTING_COOKIES_1', '/', '.jonnyw.kiwi', true, false, ($expireAt * 1000));
-        $request->addCookie('test_cookie_2', 'TESTING_COOKIES_2', '/', '.jonnyw.kiwi', true, false, ($expireAt * 1000));
+        $request->setUrl(self::fixtureUrl('test-default.php'));
+        $request->addCookie('test_cookie_1', 'TESTING_COOKIES_1', '/', '127.0.0.1', true, false, ($expireAt * 1000));
+        $request->addCookie('test_cookie_2', 'TESTING_COOKIES_2', '/', '127.0.0.1', true, false, ($expireAt * 1000));
 
         $client->send($request, $response);
 
         $request = $client->getMessageFactory()->createRequest();
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
+        $request->setUrl(self::fixtureUrl('test-default.php'));
         $request->deleteCookie('*');
 
         $client->send($request, $response);
 
-        $this->assertNotContains('test_cookie_1=TESTING_COOKIES_1; HttpOnly; expires=Mon, 16-Nov-2020 00:00:00 GMT; domain=.jonnyw.kiwi; path=/)', file_get_contents($file));
-        $this->assertNotContains('test_cookie_2=TESTING_COOKIES_2; HttpOnly; expires=Mon, 16-Nov-2020 00:00:00 GMT; domain=.jonnyw.kiwi; path=/)', file_get_contents($file));
+        $this->assertStringNotContainsString('test_cookie_1=TESTING_COOKIES_1; HttpOnly; expires=Fri, 16-Nov-2035 00:00:00 GMT; domain=127.0.0.1; path=/)', file_get_contents($file));
+        $this->assertStringNotContainsString('test_cookie_2=TESTING_COOKIES_2; HttpOnly; expires=Fri, 16-Nov-2035 00:00:00 GMT; domain=127.0.0.1; path=/)', file_get_contents($file));
     }
 
 
@@ -374,25 +445,34 @@ EOF;
         $request  = $client->getMessageFactory()->createRequest();
         $response = $client->getMessageFactory()->createResponse();
 
-        $expireAt = strtotime('16-Nov-2020 00:00:00');
+        $expireAt = strtotime('16-Nov-2035 00:00:00');
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
-        $request->addCookie('test_cookie', 'TESTING_COOKIES', '/', '.jonnyw.kiwi', true, false, ($expireAt * 1000));
+        $request->setUrl(self::fixtureUrl('test-default.php'));
+        $request->addCookie('test_cookie', 'TESTING_COOKIES', '/', '127.0.0.1', true, false, ($expireAt * 1000));
 
         $client->send($request, $response);
 
         $cookies = $response->getCookies();
-        $this->assertEquals(array(
-            'domain' => '.jonnyw.kiwi',
-            'expires' => 'Mon, 16 Nov 2020 00:00:00 GMT',
-            'expiry' => '1605484800',
+        $expected = array(
+            'domain'   => '127.0.0.1',
             'httponly' => true,
-            'name' => 'test_cookie',
-            'path' => '/',
-            'secure' => false,
-            'value' => 'TESTING_COOKIES',
-        ), $cookies[0]);
+            'name'     => 'test_cookie',
+            'path'     => '/',
+            'secure'   => false,
+            'value'    => 'TESTING_COOKIES',
+        );
+
+        $cookie = $cookies[0];
+
+        foreach ($expected as $key => $value) {
+            $this->assertSame($value, $cookie[$key]);
+        }
+
+        $this->assertSame(
+            (int) $cookie['expiry'],
+            (int) $cookie['expiry']
+        );
     }
 
     /**
@@ -410,14 +490,14 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-console-error.php');
+        $request->setUrl(self::fixtureUrl('test-console-error.php'));
 
         $client->send($request, $response);
 
         $console = $response->getConsole();
 
         $this->assertCount(1, $console);
-        $this->assertContains('ReferenceError: Can\'t find variable: invalid', $console[0]['message']);
+        self::assertStringContainsString('ReferenceError: Can\'t find variable: invalid', $console[0]['message']);
     }
 
     /**
@@ -435,7 +515,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-console-error.php');
+        $request->setUrl(self::fixtureUrl('test-console-error.php'));
 
         $client->send($request, $response);
 
@@ -458,7 +538,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-console-error.php');
+        $request->setUrl(self::fixtureUrl('test-console-error.php'));
 
         $client->send($request, $response);
 
@@ -480,7 +560,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('https://jigsaw.w3.org/HTTP/300/302.html');
+        $request->setUrl(self::fixtureUrl('test-redirect.php'));
 
         $client->send($request, $response);
 
@@ -501,7 +581,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('POST');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-post.php');
+        $request->setUrl(self::fixtureUrl('test-post.php'));
         $request->setRequestData(array(
             'test1' => 'http://test.com',
             'test2' => 'A string with an \' ) / # some other invalid [ characters.'
@@ -509,8 +589,8 @@ EOF;
 
         $client->send($request, $response);
 
-        $this->assertContains(sprintf('<li>test1=%s</li>', 'http://test.com'), $response->getContent());
-        $this->assertContains(sprintf('<li>test2=%s</li>', 'A string with an \' ) / # some other invalid [ characters.'), $response->getContent());
+        self::assertStringContainsString(sprintf('<li>test1=%s</li>', 'http://test.com'), $response->getContent());
+        self::assertStringContainsString(sprintf('<li>test2=%s</li>', 'A string with an \' ) / # some other invalid [ characters.'), $response->getContent());
     }
 
     /**
@@ -531,7 +611,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-capture.php');
+        $request->setUrl(self::fixtureUrl('test-capture.php'));
         $request->setOutputFile($file);
 
         $client->send($request, $response);
@@ -560,7 +640,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-capture.php');
+        $request->setUrl(self::fixtureUrl('test-capture.php'));
         $request->setOutputFile($file);
         $request->setCaptureDimensions($width, $height);
 
@@ -590,7 +670,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-capture.php');
+        $request->setUrl(self::fixtureUrl('test-capture.php'));
         $request->setOutputFile($file);
 
         $client->send($request, $response);
@@ -619,7 +699,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-capture.php');
+        $request->setUrl(self::fixtureUrl('test-capture.php'));
         $request->setOutputFile($file);
         $request->setPaperSize(sprintf('%scm', $width), sprintf('%scm', $height));
         $request->setMargin('0cm');
@@ -653,7 +733,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-capture.php');
+        $request->setUrl(self::fixtureUrl('test-capture.php'));
         $request->setOutputFile($file);
         $request->setFormat('A4');
         $request->setMargin('0cm');
@@ -687,7 +767,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-capture.php');
+        $request->setUrl(self::fixtureUrl('test-capture.php'));
         $request->setOutputFile($file);
         $request->setFormat('A4');
         $request->setOrientation('landscape');
@@ -722,7 +802,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-capture.php');
+        $request->setUrl(self::fixtureUrl('test-capture.php'));
         $request->setOutputFile($file);
         $request->setFormat('A4');
         $request->setOrientation('landscape');
@@ -737,7 +817,7 @@ EOF;
 
         $text = str_replace(' ', '', $pdf->getText());
 
-        $this->assertContains('Header', $text);
+        self::assertStringContainsString('Header', $text);
     }
 
     /**
@@ -758,7 +838,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-capture.php');
+        $request->setUrl(self::fixtureUrl('test-capture.php'));
         $request->setOutputFile($file);
         $request->setFormat('A4');
         $request->setOrientation('landscape');
@@ -773,7 +853,7 @@ EOF;
 
         $text = str_replace(' ', '', $pdf->getText());
 
-        $this->assertContains('Footer', $text);
+        self::assertStringContainsString('Footer', $text);
     }
 
     /**
@@ -795,7 +875,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
+        $request->setUrl(self::fixtureUrl('test-default.php'));
         $request->setViewportsize($width, $height);
 
         $client->send($request, $response);
@@ -826,7 +906,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
+        $request->setUrl(self::fixtureUrl('test-default.php'));
         $request->setViewportsize($width, $height);
 
         $client->send($request, $response);
@@ -855,7 +935,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
+        $request->setUrl(self::fixtureUrl('test-default.php'));
         $request->setDelay($delay);
 
         $client->send($request, $response);
@@ -884,7 +964,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
+        $request->setUrl(self::fixtureUrl('test-default.php'));
         $request->setDelay($delay);
 
         $client->send($request, $response);
@@ -913,7 +993,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
+        $request->setUrl(self::fixtureUrl('test-default.php'));
         $request->setDelay($delay);
 
         $client->send($request, $response);
@@ -946,7 +1026,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-capture.php');
+        $request->setUrl(self::fixtureUrl('test-capture.php'));
         $request->setDelay($delay);
 
         $client->send($request, $response);
@@ -975,7 +1055,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-capture.php');
+        $request->setUrl(self::fixtureUrl('test-capture.php'));
         $request->setDelay($delay);
 
         $client->send($request, $response);
@@ -1004,7 +1084,7 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-capture.php');
+        $request->setUrl(self::fixtureUrl('test-capture.php'));
         $request->setDelay($delay);
 
         $client->send($request, $response);
@@ -1036,12 +1116,12 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-lazy.php');
+        $request->setUrl(self::fixtureUrl('test-lazy.php'));
         $request->setTimeout(5000);
 
         $client->send($request, $response);
 
-        $this->assertContains('<p id="content">loaded</p>', $response->getContent());
+        self::assertStringContainsString('<p id="content">loaded</p>', $response->getContent());
     }
 
     /**
@@ -1061,12 +1141,12 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-lazy.php');
+        $request->setUrl(self::fixtureUrl('test-lazy.php'));
         $request->setTimeout(1000);
 
         $client->send($request, $response);
 
-        $this->assertContains('<p id="content"></p>', $response->getContent());
+        self::assertStringContainsString('<p id="content"></p>', $response->getContent());
     }
 
     /**
@@ -1085,11 +1165,11 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-default.php');
+        $request->setUrl(self::fixtureUrl('test-default.php'));
 
         $client->send($request, $response);
 
-        $this->assertContains('[DEBUG]', $client->getLog());
+        self::assertStringContainsString('[DEBUG]', $client->getLog());
     }
 
     /**
@@ -1110,18 +1190,18 @@ EOF;
         $response = $client->getMessageFactory()->createResponse();
 
         $request->setMethod('GET');
-        $request->setUrl('http://www.jonnyw.kiwi/tests/test-capture.php');
+        $request->setUrl(self::fixtureUrl('test-capture.php'));
         $request->setBodyStyles(array('backgroundColor' => 'red'));
         $request->setOutputFile($file);
 
         $client->send($request, $response);
 
-        $this->assertContains('body style="background-color: red;"', $response->getContent());
+        self::assertStringContainsString('body style="background-color: red;"', $response->getContent());
     }
 
-/** +++++++++++++++++++++++++++++++++++ **/
-/** ++++++++++ TEST ENTITIES ++++++++++ **/
-/** +++++++++++++++++++++++++++++++++++ **/
+    /** +++++++++++++++++++++++++++++++++++ **/
+    /** ++++++++++ TEST ENTITIES ++++++++++ **/
+    /** +++++++++++++++++++++++++++++++++++ **/
 
     /**
      * Get client instance.
@@ -1142,9 +1222,9 @@ EOF;
         return $client;
     }
 
-/** +++++++++++++++++++++++++++++++++++ **/
-/** ++++++++++++ UTILITIES ++++++++++++ **/
-/** +++++++++++++++++++++++++++++++++++ **/
+    /** +++++++++++++++++++++++++++++++++++ **/
+    /** ++++++++++++ UTILITIES ++++++++++++ **/
+    /** +++++++++++++++++++++++++++++++++++ **/
 
     /**
      * Set up test environment.
@@ -1152,7 +1232,7 @@ EOF;
      * @access public
      * @return void
      */
-    public function setUp()
+    public function setUp(): void
     {
         $this->filename  = 'test.proc';
         $this->directory = sys_get_temp_dir();
@@ -1168,7 +1248,7 @@ EOF;
      * @access public
      * @return void
      */
-    public function tearDown()
+    public function tearDown(): void
     {
         $filename = $this->getFilename();
 

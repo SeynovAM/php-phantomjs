@@ -15,7 +15,7 @@ use JonnyW\PhantomJs\Cache\FileCache;
  *
  * @author Jon Wenmoth <contact@jonnyw.me>
  */
-class FileCacheTest extends \PHPUnit_Framework_TestCase
+class FileCacheTest extends \PHPUnit\Framework\TestCase
 {
     /**
      * Test filename
@@ -74,7 +74,7 @@ class FileCacheTest extends \PHPUnit_Framework_TestCase
      */
     public function testNotWritableExceptionIsThrownIfFileCannotBeSavedDueToWritePermissions()
     {
-        $this->setExpectedException('\JonnyW\PhantomJs\Exception\NotWritableException');
+        $this->expectException('\JonnyW\PhantomJs\Exception\NotWritableException');
 
         $fileCache = $this->getFileCache('/This/Directory/Is/Not/Writable/', 'txt');
         $fileCache->save($this->filename, 'Test');
@@ -92,7 +92,7 @@ class FileCacheTest extends \PHPUnit_Framework_TestCase
         $fileCache  = $this->getFileCache($this->directory, 'txt');
         $file       = $fileCache->save($this->filename, 'Test');
 
-        $this->assertInternalType('string', $file);
+        $this->assertIsString($file);
         $this->assertFileExists($file);
     }
 
@@ -122,7 +122,7 @@ class FileCacheTest extends \PHPUnit_Framework_TestCase
      */
     public function testNotWritableExceptionIsThrownIfDirectoryPathIsNotWritable()
     {
-        $this->setExpectedException('\JonnyW\PhantomJs\Exception\NotWritableException');
+        $this->expectException('\JonnyW\PhantomJs\Exception\NotWritableException');
 
         $fileCache  = $this->getFileCache($this->directory, 'txt');
         $file       = $fileCache->save('/This/Directory/Is/Not/Writable/', 'Test');
@@ -156,7 +156,7 @@ class FileCacheTest extends \PHPUnit_Framework_TestCase
      */
     public function testNotExistsExceptionIsThrownIfWhenFetchingDataThatDoesntExist()
     {
-        $this->setExpectedException('\JonnyW\PhantomJs\Exception\NotExistsException');
+        $this->expectException('\JonnyW\PhantomJs\Exception\NotExistsException');
 
         $fileCache = $this->getFileCache('', 'txt');
 
@@ -195,7 +195,7 @@ class FileCacheTest extends \PHPUnit_Framework_TestCase
 
         $fileCache->delete($this->filename);
 
-        $this->assertFileNotExists($file);
+        $this->assertFileDoesNotExist($file);
     }
 
     /**
@@ -215,8 +215,8 @@ class FileCacheTest extends \PHPUnit_Framework_TestCase
 
         $fileCache->delete('test_file_*');
 
-        $this->assertFileNotExists($file1);
-        $this->assertFileNotExists($file2);
+        $this->assertFileDoesNotExist($file1);
+        $this->assertFileDoesNotExist($file2);
     }
 
 /** +++++++++++++++++++++++++++++++++++ **/
@@ -247,7 +247,7 @@ class FileCacheTest extends \PHPUnit_Framework_TestCase
      * @access public
      * @return void
      */
-    public function setUp()
+    public function setUp(): void
     {
         $this->filename  = 'test.txt';
         $this->directory = sys_get_temp_dir();
@@ -263,7 +263,7 @@ class FileCacheTest extends \PHPUnit_Framework_TestCase
      * @access public
      * @return void
      */
-    public function tearDown()
+    public function tearDown(): void
     {
         $filename = $this->getFilename();
 

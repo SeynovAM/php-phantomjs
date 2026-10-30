@@ -17,7 +17,7 @@ use JonnyW\PhantomJs\DependencyInjection\ServiceContainer;
  *
  * @author Jon Wenmoth <contact@jonnyw.me>
  */
-class ProcedureCompilerTest extends \PHPUnit_Framework_TestCase
+class ProcedureCompilerTest extends \PHPUnit\Framework\TestCase
 {
 
 /** +++++++++++++++++++++++++++++++++++ **/
@@ -60,10 +60,10 @@ class ProcedureCompilerTest extends \PHPUnit_Framework_TestCase
         $request = $this->getRequest();
         $request->setUrl('http://test.com');
 
-        $renderer = $this->getMock('\JonnyW\PhantomJs\Template\TemplateRendererInterface');
+        $renderer = $this->createMock('\JonnyW\PhantomJs\Template\TemplateRendererInterface');
         $renderer->expects($this->exactly(1))
             ->method('render')
-            ->will($this->returnValue('var test=1; phantom.exit(1);'));
+            ->willReturn('var test=1; phantom.exit(1);');
 
         $serviceContainer = ServiceContainer::getInstance();
 
@@ -94,10 +94,10 @@ class ProcedureCompilerTest extends \PHPUnit_Framework_TestCase
         $request = $this->getRequest();
         $request->setUrl('http://test.com');
 
-        $renderer = $this->getMock('\JonnyW\PhantomJs\Template\TemplateRendererInterface');
+        $renderer = $this->createMock('\JonnyW\PhantomJs\Template\TemplateRendererInterface');
         $renderer->expects($this->exactly(2))
             ->method('render')
-            ->will($this->returnValue('var test=1; phantom.exit(1);'));
+            ->willReturn('var test=1; phantom.exit(1);');
 
         $serviceContainer = ServiceContainer::getInstance();
 
@@ -127,10 +127,10 @@ class ProcedureCompilerTest extends \PHPUnit_Framework_TestCase
         $request = $this->getRequest();
         $request->setUrl('http://test.com');
 
-        $renderer = $this->getMock('\JonnyW\PhantomJs\Template\TemplateRendererInterface');
+        $renderer = $this->createMock('\JonnyW\PhantomJs\Template\TemplateRendererInterface');
         $renderer->expects($this->exactly(2))
             ->method('render')
-            ->will($this->returnValue('var test=1; phantom.exit(1);'));
+            ->willReturn('var test=1; phantom.exit(1);');
 
         $serviceContainer = ServiceContainer::getInstance();
 
@@ -155,7 +155,7 @@ class ProcedureCompilerTest extends \PHPUnit_Framework_TestCase
      */
     public function testSyntaxExceptionIsThrownIfCompiledTemplateIsNotValid()
     {
-        $this->setExpectedException('\JonnyW\PhantomJs\Exception\SyntaxException');
+        $this->expectException('\JonnyW\PhantomJs\Exception\SyntaxException');
 
         $template = <<<EOF
     console.log(;
@@ -230,7 +230,7 @@ EOF;
      * @access protected
      * @return void
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -243,7 +243,7 @@ EOF;
      * @access protected
      * @return void
      */
-    protected function tearDown()
+    protected function tearDown(): void
     {
         parent::setUp();
 

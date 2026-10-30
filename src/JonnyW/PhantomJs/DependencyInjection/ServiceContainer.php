@@ -48,9 +48,9 @@ class ServiceContainer extends ContainerBuilder
      * Load service container.
      *
      * @access public
-     * @return void
+     * @return mixed
      */
-    public function load($file = null)
+    public function load($file = null): mixed
     {
         $loader = new YamlFileLoader($this, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('config.yml');
@@ -58,5 +58,7 @@ class ServiceContainer extends ContainerBuilder
 
         $this->setParameter('phantomjs.cache_dir', sys_get_temp_dir());
         $this->setParameter('phantomjs.resource_dir', __DIR__.'/../Resources');
+
+        return null;
     }
 }

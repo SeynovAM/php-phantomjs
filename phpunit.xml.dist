@@ -3,25 +3,22 @@
 <phpunit 
     bootstrap                   = "./src/JonnyW/PhantomJs/Tests/bootstrap.php" 
     backupGlobals               = "false"
-    backupStaticAttributes      = "false"
+    backupStaticProperties      = "false"
     colors                      = "true"
-    convertErrorsToExceptions   = "true"
-    convertNoticesToExceptions  = "true"
-    convertWarningsToExceptions = "true"
     processIsolation            = "false"
     stopOnFailure               = "true"
-    syntaxCheck                 = "false">
+>
     <testsuites>
         <testsuite name="PhantomJS Test Suite">
             <directory suffix="Test.php">./src/JonnyW/PhantomJs/Tests/*</directory>
         </testsuite>
     </testsuites>
-    <filter>
-        <whitelist>
+    <source>
+        <include>
             <directory suffix=".php">./src/</directory>
-            <exclude>
-                <directory>./src/JonnyW/PhantomJs/Tests</directory>
-            </exclude>
-        </whitelist>
-    </filter>
+        </include>
+        <exclude>
+            <directory>./src/JonnyW/PhantomJs/Tests</directory>
+        </exclude>
+    </source>
 </phpunit>

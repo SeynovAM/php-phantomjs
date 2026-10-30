@@ -15,7 +15,7 @@ use JonnyW\PhantomJs\Parser\JsonParser;
  *
  * @author Jon Wenmoth <contact@jonnyw.me>
  */
-class JsonParserTest extends \PHPUnit_Framework_TestCase
+class JsonParserTest extends \PHPUnit\Framework\TestCase
 {
 
 /*****************/
@@ -35,7 +35,7 @@ class JsonParserTest extends \PHPUnit_Framework_TestCase
 
         $jsonParser = $this->getJsonParser();
 
-        $this->assertInternalType('array', $jsonParser->parse($data));
+        $this->assertIsArray($jsonParser->parse($data));
     }
 
     /**
@@ -51,7 +51,7 @@ class JsonParserTest extends \PHPUnit_Framework_TestCase
 
         $jsonParser = $this->getJsonParser();
 
-        $this->assertInternalType('array', $jsonParser->parse($data));
+        $this->assertIsArray($jsonParser->parse($data));
     }
 
     /**
@@ -67,7 +67,7 @@ class JsonParserTest extends \PHPUnit_Framework_TestCase
 
         $jsonParser = $this->getJsonParser();
 
-        $this->assertInternalType('array', $jsonParser->parse($data));
+        $this->assertIsArray($jsonParser->parse($data));
     }
 
     /**
@@ -83,7 +83,7 @@ class JsonParserTest extends \PHPUnit_Framework_TestCase
 
         $jsonParser = $this->getJsonParser();
 
-        $this->assertInternalType('array', $jsonParser->parse($data));
+        $this->assertIsArray($jsonParser->parse($data));
     }
 
     /**
@@ -99,7 +99,7 @@ class JsonParserTest extends \PHPUnit_Framework_TestCase
 
         $jsonParser = $this->getJsonParser();
 
-        $this->assertInternalType('array', $jsonParser->parse($data));
+        $this->assertIsArray($jsonParser->parse($data));
     }
 
     /**
@@ -115,7 +115,7 @@ class JsonParserTest extends \PHPUnit_Framework_TestCase
 
         $jsonParser = $this->getJsonParser();
 
-        $this->assertInternalType('array', $jsonParser->parse($data));
+        $this->assertIsArray($jsonParser->parse($data));
     }
 
     /**

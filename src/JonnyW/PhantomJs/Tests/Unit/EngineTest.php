@@ -15,7 +15,7 @@ use JonnyW\PhantomJs\Engine;
  *
  * @author Jon Wenmoth <contact@jonnyw.me>
  */
-class EngineTest extends \PHPUnit_Framework_TestCase
+class EngineTest extends \PHPUnit\Framework\TestCase
 {
 
 /** +++++++++++++++++++++++++++++++++++ **/
@@ -31,7 +31,7 @@ class EngineTest extends \PHPUnit_Framework_TestCase
      */
     public function testInvalidExecutableExceptionIsThrownIfPhantomJSPathIsInvalid()
     {
-        $this->setExpectedException('\JonnyW\PhantomJs\Exception\InvalidExecutableException');
+        $this->expectException('\JonnyW\PhantomJs\Exception\InvalidExecutableException');
 
         $engine = $this->getEngine();
         $engine->setPath('/invalid/phantomjs/path');
@@ -115,7 +115,7 @@ class EngineTest extends \PHPUnit_Framework_TestCase
      */
     public function testInvalidExecutableExceptionIsThrownWhenBuildingCommandIfPathToPhantomJSIsInvalid()
     {
-        $this->setExpectedException('\JonnyW\PhantomJs\Exception\InvalidExecutableException');
+        $this->expectException('\JonnyW\PhantomJs\Exception\InvalidExecutableException');
 
         $engine = $this->getEngine();
 
@@ -136,7 +136,7 @@ class EngineTest extends \PHPUnit_Framework_TestCase
     {
         $engine = $this->getEngine();
 
-        $this->assertContains($engine->getPath(), $engine->getCommand());
+        self::assertStringContainsString($engine->getPath(), $engine->getCommand());
     }
 
     /**
@@ -150,7 +150,7 @@ class EngineTest extends \PHPUnit_Framework_TestCase
         $engine = $this->getEngine();
         $engine->debug(true);
 
-        $this->assertContains('--debug=true', $engine->getCommand());
+        self::assertStringContainsString('--debug=true', $engine->getCommand());
     }
 
     /**
@@ -165,7 +165,7 @@ class EngineTest extends \PHPUnit_Framework_TestCase
         $engine = $this->getEngine();
         $engine->debug(false);
 
-        $this->assertNotContains('--debug=true', $engine->getCommand());
+        $this->assertStringNotContainsString('--debug=true', $engine->getCommand());
     }
 
     /**
@@ -179,7 +179,7 @@ class EngineTest extends \PHPUnit_Framework_TestCase
         $engine = $this->getEngine();
         $engine->cache(true);
 
-        $this->assertContains('--disk-cache=true', $engine->getCommand());
+        self::assertStringContainsString('--disk-cache=true', $engine->getCommand());
     }
 
     /**
@@ -194,7 +194,7 @@ class EngineTest extends \PHPUnit_Framework_TestCase
         $engine = $this->getEngine();
         $engine->cache(false);
 
-        $this->assertNotContains('--disk-cache=true', $engine->getCommand());
+        $this->assertStringNotContainsString('--disk-cache=true', $engine->getCommand());
     }
 
     /**
@@ -216,9 +216,9 @@ class EngineTest extends \PHPUnit_Framework_TestCase
 
         $command = $engine->getCommand();
 
-        $this->assertContains($option1, $command);
-        $this->assertContains($option2, $command);
-        $this->assertContains($option3, $command);
+        self::assertStringContainsString($option1, $command);
+        self::assertStringContainsString($option2, $command);
+        self::assertStringContainsString($option3, $command);
     }
 
     /**
@@ -238,8 +238,8 @@ class EngineTest extends \PHPUnit_Framework_TestCase
 
         $command = $engine->getCommand();
 
-        $this->assertContains($option, $command);
-        $this->assertContains('--debug=true', $command);
+        self::assertStringContainsString($option, $command);
+        self::assertStringContainsString('--debug=true', $command);
     }
 
 /** +++++++++++++++++++++++++++++++++++ **/

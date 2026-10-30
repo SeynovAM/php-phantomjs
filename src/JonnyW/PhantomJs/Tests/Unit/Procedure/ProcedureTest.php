@@ -8,8 +8,8 @@
  */
 namespace JonnyW\PhantomJs\Tests\Unit\Procedure;
 
-use Twig_Environment;
-use Twig_Loader_String;
+use Twig\Environment;
+use Twig\Loader\ArrayLoader;
 use JonnyW\PhantomJs\Engine;
 use JonnyW\PhantomJs\Cache\FileCache;
 use JonnyW\PhantomJs\Cache\CacheInterface;
@@ -26,7 +26,7 @@ use JonnyW\PhantomJs\Procedure\Procedure;
  *
  * @author Jon Wenmoth <contact@jonnyw.me>
  */
-class ProcedureTest extends \PHPUnit_Framework_TestCase
+class ProcedureTest extends \PHPUnit\Framework\TestCase
 {
 
 /** +++++++++++++++++++++++++++++++++++ **/
@@ -88,7 +88,7 @@ class ProcedureTest extends \PHPUnit_Framework_TestCase
      */
     public function testNotWritableExceptionIsThrownIfProcedureScriptCannotBeWrittenToFile()
     {
-        $this->setExpectedException('\JonnyW\PhantomJs\Exception\NotWritableException');
+        $this->expectException('\JonnyW\PhantomJs\Exception\NotWritableException');
 
         $engne    = $this->getEngine();
         $parser   = $this->getParser();
@@ -112,7 +112,7 @@ class ProcedureTest extends \PHPUnit_Framework_TestCase
      */
     public function testProcedureFailedExceptionIsThrownIfProcedureCannotBeRun()
     {
-        $this->setExpectedException('\JonnyW\PhantomJs\Exception\ProcedureFailedException');
+        $this->expectException('\JonnyW\PhantomJs\Exception\ProcedureFailedException');
 
         $parser   = $this->getParser();
         $cache    = $this->getCache();
@@ -185,8 +185,8 @@ class ProcedureTest extends \PHPUnit_Framework_TestCase
      */
     protected function getRenderer()
     {
-        $twig = new Twig_Environment(
-            new Twig_Loader_String()
+        $twig = new Environment(
+            new ArrayLoader()
         );
 
         $renderer = new TemplateRenderer($twig);
@@ -232,7 +232,7 @@ class ProcedureTest extends \PHPUnit_Framework_TestCase
      */
     protected function getEngine()
     {
-        $engine = $this->getMock('\JonnyW\PhantomJs\Engine');
+        $engine = $this->createMock('\JonnyW\PhantomJs\Engine');
 
         return $engine;
     }

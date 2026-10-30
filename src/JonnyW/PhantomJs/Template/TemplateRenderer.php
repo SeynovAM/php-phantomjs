@@ -18,7 +18,7 @@ class TemplateRenderer implements TemplateRendererInterface
     /**
      * Twig environment instance.
      *
-     * @var \Twig_Environment
+     * @var \Twig\Environment
      * @access protected
      */
     protected $twig;
@@ -27,9 +27,9 @@ class TemplateRenderer implements TemplateRendererInterface
      * Internal constructor.
      *
      * @access public
-     * @param \Twig_Environment $twig
+     * @param \Twig\Environment $twig
      */
-    public function __construct(\Twig_Environment $twig)
+    public function __construct(\Twig\Environment $twig)
     {
         $this->twig = $twig;
     }
@@ -44,7 +44,7 @@ class TemplateRenderer implements TemplateRendererInterface
      */
     public function render($template, array $context = array())
     {
-        $template = $this->twig->createTemplate($template);
+        $template = $this->twig->createTemplate((string)$template);
 
         return $template->render($context);
     }
